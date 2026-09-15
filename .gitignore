@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Test coverage
+coverage/
+
+# Environment files and local secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Local SQLite databases created by Prisma
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-wal
+prisma/*.db-shm
+
+# TypeScript build metadata
+*.tsbuildinfo
+
+# Logs and debug output
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

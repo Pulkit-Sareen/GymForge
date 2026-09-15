@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  overscroll-behavior-y: contain;
+}
+
+/* Custom scrollbars for mobile elegance */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+/* Dynamic muscle SVG lighting glow effects */
+.muscle-primary-glow {
+  filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.85));
+}
+
+.muscle-secondary-glow {
+  filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.75));
+}
+
+/* Mobile viewport bottom padding for navigation */
+.pb-safe {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
