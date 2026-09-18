@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -13,7 +13,7 @@ import {
 } from '@/types/workout';
 import { OnboardingPreferences, DEFAULT_ONBOARDING_PREFERENCES } from '@/types/onboarding';
 import { generateWeeklyPlan } from '@/core/generator/routine-generator';
-import { getPreferences, saveCurrentPlan, savePreferences } from '@/lib/indexeddb';
+import { saveCurrentPlan, savePreferences, getPreferences } from '@/lib/indexeddb';
 import {
   Flame,
   Dumbbell,
@@ -35,8 +35,7 @@ export const OnboardingWizard: React.FC = () => {
   const [prefs, setPrefs] = useState<OnboardingPreferences>(DEFAULT_ONBOARDING_PREFERENCES);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Re-running the questionnaire should start from the user's last answers,
-  // while still allowing every answer to be changed.
+  // Restore saved preferences if any
   useEffect(() => {
     getPreferences()
       .then((savedPreferences) => {
@@ -47,6 +46,16 @@ export const OnboardingWizard: React.FC = () => {
 
   const update = <K extends keyof OnboardingPreferences>(key: K, value: OnboardingPreferences[K]) => {
     setPrefs((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const selectAndAdvance = <K extends keyof OnboardingPreferences>(
+    key: K,
+    value: OnboardingPreferences[K]
+  ) => {
+    setPrefs((prev) => ({ ...prev, [key]: value }));
+    setTimeout(() => {
+      setStep((s) => Math.min(s + 1, totalSteps));
+    }, 220);
   };
 
   const handleEquipmentPresetChange = (preset: EquipmentPreset) => {
@@ -63,14 +72,30 @@ export const OnboardingWizard: React.FC = () => {
     setPrefs((prev) => ({ ...prev, equipmentPreset: preset, availableEquipment: eq }));
   };
 
-  const handleFinish = async () => {
+  const handleEquipmentPresetSelect = (preset: EquipmentPreset) => {
+    handleEquipmentPresetChange(preset);
+    setTimeout(() => {
+      setStep((s) => Math.min(s + 1, totalSteps));
+    }, 220);
+  };
+
+  const handleCardioPlacementSelect = (placement: CardioPlacement) => {
+    const updated = { ...prefs, cardioPlacement: placement };
+    setPrefs(updated);
+    setTimeout(() => {
+      handleFinish(updated);
+    }, 220);
+  };
+
+  const handleFinish = async (customPrefs?: OnboardingPreferences) => {
+    const targetPrefs = customPrefs || prefs;
     setIsGenerating(true);
     try {
       // 1. Generate customized deterministic weekly plan
-      const plan = generateWeeklyPlan(prefs);
+      const plan = generateWeeklyPlan(targetPrefs);
 
       // 2. Persist locally to IndexedDB for offline access
-      await savePreferences(prefs);
+      await savePreferences(targetPrefs);
       await saveCurrentPlan(plan);
 
       // 3. Optional server sync
@@ -78,7 +103,7 @@ export const OnboardingWizard: React.FC = () => {
         const response = await fetch('/api/plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ preferences: prefs, plan }),
+          body: JSON.stringify({ preferences: targetPrefs, plan }),
         });
         if (!response.ok) {
           throw new Error('Server could not sync the regenerated plan');
@@ -148,8 +173,8 @@ export const OnboardingWizard: React.FC = () => {
                   <button
                     key={item.days}
                     type="button"
-                    onClick={() => update('workoutDaysPerWeek', item.days)}
-                    className={`p-4 rounded-2xl border text-left transition-all ${
+                    onClick={() => selectAndAdvance('workoutDaysPerWeek', item.days)}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer active:scale-95 ${
                       isSelected
                         ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
@@ -192,8 +217,8 @@ export const OnboardingWizard: React.FC = () => {
                   <button
                     key={item.count}
                     type="button"
-                    onClick={() => update('cardioDaysPerWeek', item.count)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                    onClick={() => selectAndAdvance('cardioDaysPerWeek', item.count)}
+                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer active:scale-98 ${
                       isSelected
                         ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
@@ -239,8 +264,8 @@ export const OnboardingWizard: React.FC = () => {
                   <button
                     key={item.goal}
                     type="button"
-                    onClick={() => update('primaryGoal', item.goal)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                    onClick={() => selectAndAdvance('primaryGoal', item.goal)}
+                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer active:scale-98 ${
                       isSelected
                         ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
@@ -295,8 +320,8 @@ export const OnboardingWizard: React.FC = () => {
                   <button
                     key={item.level}
                     type="button"
-                    onClick={() => update('experienceLevel', item.level)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                    onClick={() => selectAndAdvance('experienceLevel', item.level)}
+                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer active:scale-98 ${
                       isSelected
                         ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
@@ -356,8 +381,8 @@ export const OnboardingWizard: React.FC = () => {
                   <button
                     key={item.preset}
                     type="button"
-                    onClick={() => handleEquipmentPresetChange(item.preset)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                    onClick={() => handleEquipmentPresetSelect(item.preset)}
+                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer active:scale-98 ${
                       isSelected
                         ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
@@ -385,7 +410,7 @@ export const OnboardingWizard: React.FC = () => {
                 Session duration & units
               </h2>
               <p className="text-xs text-zinc-400 mt-1">
-                We fit the optimal exercise volume into your gym window.
+                We fit the optimal exercise volume into your gym window. Tap Continue below when ready.
               </p>
             </div>
 
@@ -401,7 +426,7 @@ export const OnboardingWizard: React.FC = () => {
                       key={mins}
                       type="button"
                       onClick={() => update('preferredDurationMinutes', mins)}
-                      className={`p-3 rounded-2xl border text-center transition-all ${
+                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 font-bold shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                           : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:border-zinc-700'
@@ -426,7 +451,7 @@ export const OnboardingWizard: React.FC = () => {
                         key={unit}
                         type="button"
                         onClick={() => update('weightUnit', unit)}
-                        className={`p-3 rounded-2xl border text-center font-bold text-base transition-all ${
+                        className={`p-3 rounded-2xl border text-center font-bold text-base transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                             : 'bg-zinc-900/80 border-zinc-800 text-zinc-400'
@@ -450,7 +475,7 @@ export const OnboardingWizard: React.FC = () => {
                 Cardio placement preference
               </h2>
               <p className="text-xs text-zinc-400 mt-1">
-                How should cardio be integrated with your lifting days?
+                How should cardio be integrated with your lifting days? Tapping a choice will generate your plan.
               </p>
             </div>
 
@@ -477,8 +502,8 @@ export const OnboardingWizard: React.FC = () => {
                   <button
                     key={item.placement}
                     type="button"
-                    onClick={() => update('cardioPlacement', item.placement)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                    onClick={() => handleCardioPlacementSelect(item.placement)}
+                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer active:scale-98 ${
                       isSelected
                         ? 'bg-cyan-950/40 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
@@ -499,13 +524,13 @@ export const OnboardingWizard: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom Navigation Buttons */}
-      <div className="pt-6 border-t border-zinc-900 flex items-center justify-between gap-3">
+      {/* Sticky Bottom Navigation Buttons */}
+      <div className="sticky bottom-0 bg-zinc-950/95 backdrop-blur-lg pt-3 pb-5 border-t border-zinc-900 flex items-center justify-between gap-3 mt-auto z-30">
         {step > 1 ? (
           <Button
             variant="secondary"
             onClick={() => setStep((s) => s - 1)}
-            className="flex items-center gap-1 px-4"
+            className="flex items-center gap-1.5 px-4 min-h-[46px] font-semibold text-zinc-300"
           >
             <ChevronLeft className="w-4 h-4" />
             Back
@@ -518,7 +543,7 @@ export const OnboardingWizard: React.FC = () => {
           <Button
             variant="primary"
             onClick={() => setStep((s) => s + 1)}
-            className="flex items-center gap-1 px-6 ml-auto"
+            className="flex items-center gap-1.5 px-7 ml-auto min-h-[46px] font-bold text-sm bg-gradient-to-r from-cyan-500 to-cyan-400 text-zinc-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
           >
             Continue
             <ChevronRight className="w-4 h-4" />
@@ -526,9 +551,9 @@ export const OnboardingWizard: React.FC = () => {
         ) : (
           <Button
             variant="primary"
-            onClick={handleFinish}
+            onClick={() => handleFinish()}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-8 ml-auto font-bold bg-gradient-to-r from-cyan-500 to-emerald-400 text-zinc-950"
+            className="flex items-center gap-2 px-6 ml-auto font-black min-h-[46px] bg-gradient-to-r from-cyan-500 to-emerald-400 text-zinc-950 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
           >
             {isGenerating ? (
               <span>Building Routine...</span>

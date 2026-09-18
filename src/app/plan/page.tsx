@@ -7,25 +7,31 @@ import {
   WeeklyWorkoutPlan,
   PlannedWorkoutDay,
   ExerciseDefinition,
+  AnatomicalMuscleId,
 } from '@/types/workout';
 import { getCurrentPlan, saveCurrentPlan } from '@/lib/indexeddb';
 import { EXERCISE_LIBRARY } from '@/data/exercises';
-import { swapDaysInPlan, removeExerciseFromPlan, addExerciseToPlan, swapExerciseInPlan } from '@/core/regeneration/plan-modifier';
+import {
+  swapDaysInPlan,
+  removeExerciseFromPlan,
+  addExerciseToPlan,
+  swapExerciseInPlan,
+  updateDayMuscleFocusAndExercises,
+} from '@/core/regeneration/plan-modifier';
 import { SwapExerciseModal } from '@/components/workout/SwapExerciseModal';
+import { CustomizeDayModal } from '@/components/workout/CustomizeDayModal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import {
-  Calendar,
   ArrowUpDown,
   Plus,
   Trash2,
   RefreshCw,
-  ChevronRight,
-  Sparkles,
-  Dumbbell,
   Play,
   RotateCcw,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 
 export default function PlanManagementPage() {
@@ -36,6 +42,7 @@ export default function PlanManagementPage() {
   const [swapDayTargetA, setSwapDayTargetA] = useState('');
   const [swapDayTargetB, setSwapDayTargetB] = useState('');
   const [addExerciseModalOpen, setAddExerciseModalOpen] = useState(false);
+  const [customizeDayModalOpen, setCustomizeDayModalOpen] = useState(false);
   const [swapExerciseTarget, setSwapExerciseTarget] = useState<ExerciseDefinition | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -98,6 +105,46 @@ export default function PlanManagementPage() {
     setSwapExerciseTarget(null);
   };
 
+  // Customize Day Muscle Focus Handler
+  const handleApplyCustomFocus = async (
+    title: string,
+    muscles: AnatomicalMuscleId[],
+    patterns: string[],
+    isRest?: boolean,
+    isCardio?: boolean
+  ) => {
+    if (isRest) {
+      const updatedDays = plan.days.map((d) =>
+        d.id === selectedDay.id
+          ? {
+              ...d,
+              title: 'Rest & Recovery',
+              focusMuscles: [],
+              exercises: [],
+              isRestDay: true,
+              isCardioDay: false,
+            }
+          : d
+      );
+      const updated = { ...plan, days: updatedDays, updatedAt: new Date().toISOString() };
+      setPlan(updated);
+      await saveCurrentPlan(updated);
+      return;
+    }
+
+    const updated = updateDayMuscleFocusAndExercises(
+      plan,
+      selectedDay.id,
+      title,
+      muscles,
+      patterns,
+      ['BARBELL', 'DUMBBELL', 'CABLE', 'MACHINE', 'BENCH', 'BODYWEIGHT'],
+      EXERCISE_LIBRARY
+    );
+    setPlan(updated);
+    await saveCurrentPlan(updated);
+  };
+
   return (
     <div className="max-w-lg mx-auto p-4 pb-safe space-y-5">
       {/* Top Title & Actions */}
@@ -111,19 +158,21 @@ export default function PlanManagementPage() {
           </h1>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setSwapDayTargetA(plan.days[0].id);
-            setSwapDayTargetB(plan.days[2].id);
-            setSwapDaysModalOpen(true);
-          }}
-          className="flex items-center gap-1.5 text-xs text-zinc-300 border-zinc-700"
-        >
-          <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400" />
-          Swap Days
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSwapDayTargetA(plan.days[0].id);
+              setSwapDayTargetB(plan.days[2]?.id || plan.days[1]?.id || plan.days[0].id);
+              setSwapDaysModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 text-xs text-zinc-300 border-zinc-700"
+          >
+            <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400" />
+            Swap Days
+          </Button>
+        </div>
       </div>
 
       {/* Day Selector Pill Tabs */}
@@ -150,8 +199,18 @@ export default function PlanManagementPage() {
       <div className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-5 shadow-xl space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <Badge variant="cyan">{selectedDay.dayName.toUpperCase()}</Badge>
-            <h2 className="text-xl font-extrabold text-zinc-100 mt-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="cyan">{selectedDay.dayName.toUpperCase()}</Badge>
+              <button
+                type="button"
+                onClick={() => setCustomizeDayModalOpen(true)}
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 bg-cyan-950/40 border border-cyan-800/40 px-2 py-0.5 rounded-lg transition-colors"
+              >
+                <Layers className="w-3 h-3" />
+                Customize Muscle Focus
+              </button>
+            </div>
+            <h2 className="text-xl font-extrabold text-zinc-100 mt-1.5">
               {selectedDay.title}
             </h2>
           </div>
@@ -167,13 +226,22 @@ export default function PlanManagementPage() {
         </div>
 
         {selectedDay.isRestDay ? (
-          <div className="p-6 bg-zinc-950/60 rounded-2xl border border-zinc-800/80 text-center space-y-2">
+          <div className="p-6 bg-zinc-950/60 rounded-2xl border border-zinc-800/80 text-center space-y-3">
             <span className="text-sm font-bold text-zinc-300 block">
               Scheduled Rest Day
             </span>
             <p className="text-xs text-zinc-500">
               No lifting scheduled today. Dedicate time to mobility, nutrition, and rest.
             </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCustomizeDayModalOpen(true)}
+              className="text-xs border-zinc-700 text-cyan-400 hover:bg-zinc-800"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1" />
+              Assign Muscle Focus or Workout to this Day
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -350,6 +418,14 @@ export default function PlanManagementPage() {
         availableEquipment={['BARBELL', 'DUMBBELL', 'CABLE', 'MACHINE', 'BENCH', 'BODYWEIGHT']}
         currentWorkoutExerciseIds={selectedDay.exercises.map((e) => e.exerciseId)}
         onSelectReplacement={handleSwapExerciseSuccess}
+      />
+
+      {/* Customize Day Focus Modal */}
+      <CustomizeDayModal
+        isOpen={customizeDayModalOpen}
+        onClose={() => setCustomizeDayModalOpen(false)}
+        day={selectedDay}
+        onApply={handleApplyCustomFocus}
       />
     </div>
   );

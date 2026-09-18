@@ -144,3 +144,68 @@ export function swapDaysInPlan(
     updatedAt: new Date().toISOString(),
   };
 }
+
+export function updateDayMuscleFocusAndExercises(
+  plan: WeeklyWorkoutPlan,
+  dayId: string,
+  focusTitle: string,
+  focusMuscles: any[],
+  movementPatterns: string[],
+  availableEquipment: any[] = ['BARBELL', 'DUMBBELL', 'CABLE', 'MACHINE', 'BENCH', 'BODYWEIGHT'],
+  library: any[] = []
+): WeeklyWorkoutPlan {
+  const equipSet = new Set(availableEquipment);
+  const exLib = library.length > 0 ? library : require('@/data/exercises').EXERCISE_LIBRARY;
+
+  const updatedDays = plan.days.map((day) => {
+    if (day.id !== dayId) return day;
+
+    const newExercises: PlannedExercise[] = [];
+    const usedIds = new Set<string>();
+
+    for (let i = 0; i < movementPatterns.length; i++) {
+      const pat = movementPatterns[i];
+      const candidates = exLib.filter((ex: any) => {
+        if (usedIds.has(ex.id)) return false;
+        if (ex.movementPattern !== pat) return false;
+        return ex.equipmentRequired.every((eq: any) => equipSet.has(eq));
+      });
+
+      // Prefer exercises targeting the specified focus muscles
+      const match = candidates.find((ex: any) =>
+        ex.primaryMuscles.some((m: any) => focusMuscles.includes(m))
+      ) || candidates[0];
+
+      if (match) {
+        usedIds.add(match.id);
+        newExercises.push({
+          id: `pe-${day.dayOfWeek}-${match.id}-${i}`,
+          exerciseId: match.id,
+          orderIndex: i,
+          targetSets: match.defaultSets,
+          targetRepMin: match.defaultRepMin,
+          targetRepMax: match.defaultRepMax,
+          targetRir: 2,
+          restSeconds: match.defaultRestSeconds,
+          suggestedWeightKg: 20,
+        });
+      }
+    }
+
+    return {
+      ...day,
+      title: focusTitle,
+      focusMuscles,
+      isRestDay: false,
+      isCardioDay: movementPatterns.every((p) => p === 'CARDIO'),
+      exercises: newExercises,
+    };
+  });
+
+  return {
+    ...plan,
+    days: updatedDays,
+    updatedAt: new Date().toISOString(),
+  };
+}
+

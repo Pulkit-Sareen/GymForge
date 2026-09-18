@@ -50,6 +50,8 @@ export function estimateCardioCalories(
     baseMet = 7.5;
   } else if (lowerType.includes('stair')) {
     baseMet = 8.5;
+  } else if (lowerType.includes('elliptical')) {
+    baseMet = 7.0;
   }
 
   let intensityMult = 1.0;
@@ -58,6 +60,72 @@ export function estimateCardioCalories(
 
   const totalMet = baseMet * intensityMult;
   return Math.round(totalMet * weight * hours);
+}
+
+export interface AdvancedCardioParams {
+  cardioType: string;
+  durationMinutes: number;
+  distanceKm?: number;
+  speedKmh?: number;
+  inclinePercent?: number;
+  directKcalOverride?: number;
+  userWeightKg?: number;
+}
+
+/**
+ * Calculates cardio calories using detailed parameters (distance, speed, incline, duration)
+ * or accepts a direct machine calorie readout override.
+ */
+export function calculateAdvancedCardioCalories(params: AdvancedCardioParams): number {
+  // If user directly enters machine readout, return it immediately
+  if (params.directKcalOverride !== undefined && params.directKcalOverride > 0) {
+    return Math.round(params.directKcalOverride);
+  }
+
+  const duration = Math.max(params.durationMinutes || 0, 1);
+  const weight = (params.userWeightKg && params.userWeightKg > 0) ? params.userWeightKg : 75;
+  const hours = duration / 60;
+  const lowerType = params.cardioType.toLowerCase();
+
+  // Determine speed if distance and time are supplied
+  let speed = params.speedKmh;
+  if (!speed && params.distanceKm && params.distanceKm > 0) {
+    speed = params.distanceKm / hours;
+  }
+
+  // Treadmill / Walking / Running with ACSM formula
+  if (lowerType.includes('walk') || lowerType.includes('treadmill') || lowerType.includes('run')) {
+    const effectiveSpeedKmh = speed || (lowerType.includes('run') ? 9.0 : 5.0);
+    const speedMPerMin = (effectiveSpeedKmh * 1000) / 60;
+    const grade = (params.inclinePercent || 0) / 100;
+
+    let vo2 = 3.5;
+    if (effectiveSpeedKmh < 7.0) {
+      // ACSM Walking formula: VO2 = 0.1 * S + 1.8 * S * G + 3.5
+      vo2 = 0.1 * speedMPerMin + 1.8 * speedMPerMin * grade + 3.5;
+    } else {
+      // ACSM Running formula: VO2 = 0.2 * S + 0.9 * S * G + 3.5
+      vo2 = 0.2 * speedMPerMin + 0.9 * speedMPerMin * grade + 3.5;
+    }
+
+    const met = vo2 / 3.5;
+    return Math.round(met * weight * hours);
+  }
+
+  // Cycling
+  if (lowerType.includes('bike') || lowerType.includes('cycle')) {
+    let met = 6.8;
+    if (speed) {
+      if (speed < 16) met = 4.5;
+      else if (speed < 20) met = 6.5;
+      else if (speed < 25) met = 8.5;
+      else met = 11.5;
+    }
+    return Math.round(met * weight * hours);
+  }
+
+  // Default fallback to standard cardio MET
+  return estimateCardioCalories(params.cardioType, duration, 'MODERATE', weight);
 }
 
 export function estimateWorkoutTotalCalories(

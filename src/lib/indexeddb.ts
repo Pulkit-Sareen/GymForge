@@ -108,3 +108,63 @@ export async function getPreferences(): Promise<OnboardingPreferences | undefine
   const profile = await db.userProfile.get('current_user_profile');
   return profile;
 }
+
+export async function updateCompletedSession(
+  id: string,
+  updated: Partial<StoredSession>
+): Promise<StoredSession | undefined> {
+  const existing = await db.sessions.get(id);
+  if (!existing) return undefined;
+
+  let totalVolume = existing.totalVolumeKg;
+  let totalSets = existing.totalSetsCompleted;
+
+  if (updated.exercises) {
+    totalVolume = 0;
+    totalSets = 0;
+    updated.exercises.forEach((ex) => {
+      ex.sets.forEach((s) => {
+        totalSets++;
+        totalVolume += (s.weightKg || 0) * (s.reps || 0);
+      });
+    });
+  }
+
+  const merged: StoredSession = {
+    ...existing,
+    ...updated,
+    totalVolumeKg: updated.totalVolumeKg !== undefined ? updated.totalVolumeKg : totalVolume,
+    totalSetsCompleted: updated.totalSetsCompleted !== undefined ? updated.totalSetsCompleted : totalSets,
+    synced: false,
+  };
+
+  await db.sessions.put(merged);
+  return merged;
+}
+
+export async function deleteCompletedSession(id: string): Promise<void> {
+  await db.sessions.delete(id);
+}
+
+export async function eraseAllUserData(): Promise<void> {
+  await db.transaction('rw', [
+    db.plans,
+    db.activeSession,
+    db.sessions,
+    db.userProfile,
+    db.personalRecords,
+    db.syncOutbox,
+  ], async () => {
+    await db.plans.clear();
+    await db.activeSession.clear();
+    await db.sessions.clear();
+    await db.userProfile.clear();
+    await db.personalRecords.clear();
+    await db.syncOutbox.clear();
+  });
+
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.clear();
+  }
+}
+

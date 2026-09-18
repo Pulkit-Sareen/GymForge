@@ -346,3 +346,135 @@ export const SPLIT_TEMPLATES: Record<number, SplitTemplate> = {
     ],
   },
 };
+
+export const INDIVIDUAL_MUSCLE_SETS: Record<string, { name: string; muscles: AnatomicalMuscleId[]; patterns: string[] }> = {
+  chest: {
+    name: 'Chest',
+    muscles: ['chest_mid', 'chest_upper', 'chest_lower'],
+    patterns: ['HORIZONTAL_PUSH', 'HORIZONTAL_PUSH', 'HORIZONTAL_PUSH'],
+  },
+  back: {
+    name: 'Back',
+    muscles: ['latissimus_dorsi', 'rhomboids', 'erector_spinae', 'trapezius_upper'],
+    patterns: ['VERTICAL_PULL', 'HORIZONTAL_PULL', 'HORIZONTAL_PULL'],
+  },
+  shoulders: {
+    name: 'Shoulders',
+    muscles: ['deltoid_anterior', 'deltoid_lateral', 'deltoid_posterior'],
+    patterns: ['VERTICAL_PUSH', 'ISOLATION_DELT', 'ISOLATION_DELT'],
+  },
+  arms: {
+    name: 'Arms (Biceps & Triceps)',
+    muscles: ['biceps', 'triceps_long', 'triceps_lateral', 'forearms'],
+    patterns: ['ISOLATION_ARM', 'ISOLATION_ARM', 'ISOLATION_ARM', 'ISOLATION_ARM'],
+  },
+  legs: {
+    name: 'Legs',
+    muscles: ['quadriceps', 'hamstrings', 'gluteus_maximus', 'calves_gastrocnemius'],
+    patterns: ['SQUAT', 'HINGE', 'ISOLATION_LEG', 'ISOLATION_LEG'],
+  },
+  abs: {
+    name: 'Abs & Core',
+    muscles: ['rectus_abdominis', 'obliques'],
+    patterns: ['CORE', 'CORE', 'CORE'],
+  },
+};
+
+export const PRESET_WORKOUT_SPLITS = [
+  { key: 'FULL_BODY', name: 'Full Body', desc: 'Chest, Back, Quads, Hamstrings & Core' },
+  { key: 'UPPER_BODY', name: 'Upper Body', desc: 'Chest, Back, Shoulders & Arms' },
+  { key: 'LOWER_BODY', name: 'Lower Body', desc: 'Quads, Hamstrings, Glutes & Calves' },
+  { key: 'CHEST', name: 'Chest Only', desc: 'Horizontal Push & Upper/Lower Pecs' },
+  { key: 'BACK', name: 'Back Only', desc: 'Lats, Rhomboids, Traps & Rows' },
+  { key: 'SHOULDERS', name: 'Shoulders Only', desc: 'Front, Lateral & Rear Delts' },
+  { key: 'ARMS', name: 'Arms Only', desc: 'Biceps, Triceps & Forearms' },
+  { key: 'LEGS', name: 'Legs Only', desc: 'Squats, Hinges, Quad & Hamstring curls' },
+  { key: 'ABS', name: 'Abs / Core', desc: 'Direct abdominal & oblique training' },
+  { key: 'CHEST_TRICEPS', name: 'Chest + Triceps', desc: 'Pectoral pressing paired with tricep extensions' },
+  { key: 'BACK_BICEPS', name: 'Back + Biceps', desc: 'Pulling movements paired with bicep curls' },
+  { key: 'CHEST_BACK', name: 'Chest + Back', desc: 'Classic antagonistic push-pull pairing' },
+  { key: 'SHOULDERS_ARMS', name: 'Shoulders + Arms', desc: 'Complete upper body arm & delt focus' },
+  { key: 'LEGS_ABS', name: 'Legs + Abs', desc: 'Lower body paired with core conditioning' },
+];
+
+export function getMusclesAndPatternsForSelection(
+  selection: string,
+  pairSecondary?: string
+): { title: string; muscles: AnatomicalMuscleId[]; patterns: string[] } {
+  // If user combined two single muscles together:
+  if (pairSecondary && INDIVIDUAL_MUSCLE_SETS[selection] && INDIVIDUAL_MUSCLE_SETS[pairSecondary]) {
+    const setA = INDIVIDUAL_MUSCLE_SETS[selection];
+    const setB = INDIVIDUAL_MUSCLE_SETS[pairSecondary];
+    return {
+      title: `${setA.name} + ${setB.name}`,
+      muscles: Array.from(new Set([...setA.muscles, ...setB.muscles])),
+      patterns: [...setA.patterns.slice(0, 3), ...setB.patterns.slice(0, 3)],
+    };
+  }
+
+  switch (selection) {
+    case 'FULL_BODY':
+      return {
+        title: 'Full Body',
+        muscles: ['quadriceps', 'chest_mid', 'latissimus_dorsi', 'hamstrings', 'rectus_abdominis'],
+        patterns: ['SQUAT', 'HORIZONTAL_PUSH', 'HORIZONTAL_PULL', 'HINGE', 'CORE'],
+      };
+    case 'UPPER_BODY':
+      return {
+        title: 'Upper Body',
+        muscles: ['chest_mid', 'latissimus_dorsi', 'deltoid_lateral', 'triceps_long', 'biceps'],
+        patterns: ['HORIZONTAL_PUSH', 'VERTICAL_PULL', 'HORIZONTAL_PULL', 'ISOLATION_DELT', 'ISOLATION_ARM'],
+      };
+    case 'LOWER_BODY':
+      return {
+        title: 'Lower Body',
+        muscles: ['quadriceps', 'hamstrings', 'gluteus_maximus', 'calves_gastrocnemius'],
+        patterns: ['SQUAT', 'HINGE', 'LUNGE', 'ISOLATION_LEG', 'ISOLATION_LEG'],
+      };
+    case 'CHEST_TRICEPS':
+      return {
+        title: 'Chest + Triceps',
+        muscles: ['chest_mid', 'chest_upper', 'triceps_long', 'triceps_lateral'],
+        patterns: ['HORIZONTAL_PUSH', 'HORIZONTAL_PUSH', 'HORIZONTAL_PUSH', 'ISOLATION_ARM', 'ISOLATION_ARM'],
+      };
+    case 'BACK_BICEPS':
+      return {
+        title: 'Back + Biceps',
+        muscles: ['latissimus_dorsi', 'rhomboids', 'biceps', 'forearms'],
+        patterns: ['VERTICAL_PULL', 'HORIZONTAL_PULL', 'HORIZONTAL_PULL', 'ISOLATION_ARM', 'ISOLATION_ARM'],
+      };
+    case 'CHEST_BACK':
+      return {
+        title: 'Chest + Back',
+        muscles: ['chest_mid', 'chest_upper', 'latissimus_dorsi', 'rhomboids'],
+        patterns: ['HORIZONTAL_PUSH', 'VERTICAL_PULL', 'HORIZONTAL_PUSH', 'HORIZONTAL_PULL'],
+      };
+    case 'SHOULDERS_ARMS':
+      return {
+        title: 'Shoulders + Arms',
+        muscles: ['deltoid_anterior', 'deltoid_lateral', 'deltoid_posterior', 'biceps', 'triceps_long'],
+        patterns: ['VERTICAL_PUSH', 'ISOLATION_DELT', 'ISOLATION_ARM', 'ISOLATION_ARM'],
+      };
+    case 'LEGS_ABS':
+      return {
+        title: 'Legs + Abs',
+        muscles: ['quadriceps', 'hamstrings', 'gluteus_maximus', 'rectus_abdominis', 'obliques'],
+        patterns: ['SQUAT', 'HINGE', 'ISOLATION_LEG', 'CORE', 'CORE'],
+      };
+    default:
+      if (INDIVIDUAL_MUSCLE_SETS[selection.toLowerCase()]) {
+        const s = INDIVIDUAL_MUSCLE_SETS[selection.toLowerCase()];
+        return {
+          title: s.name,
+          muscles: s.muscles,
+          patterns: s.patterns,
+        };
+      }
+      return {
+        title: 'Custom Focus',
+        muscles: ['chest_mid', 'latissimus_dorsi'],
+        patterns: ['HORIZONTAL_PUSH', 'HORIZONTAL_PULL'],
+      };
+  }
+}
+

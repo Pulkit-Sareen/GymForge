@@ -3,6 +3,7 @@ import {
   estimateExerciseCalories,
   estimateCardioCalories,
   estimateWorkoutTotalCalories,
+  calculateAdvancedCardioCalories,
 } from '@/core/calories/calorie-calculator';
 import { EXERCISE_LIBRARY } from '@/data/exercises';
 
@@ -36,5 +37,40 @@ describe('Calorie Estimation Engine', () => {
     expect(total.strengthKcal).toBe(320);
     expect(total.cardioKcal).toBe(180);
     expect(total.totalKcal).toBe(500);
+  });
+
+  it('calculates advanced cardio with speed and incline using ACSM formula', () => {
+    const flatWalk = calculateAdvancedCardioCalories({
+      cardioType: 'Treadmill / Walk',
+      durationMinutes: 30,
+      distanceKm: 2.5,
+      speedKmh: 5.0,
+      inclinePercent: 0,
+      userWeightKg: 75,
+    });
+
+    const inclinedWalk = calculateAdvancedCardioCalories({
+      cardioType: 'Treadmill / Walk',
+      durationMinutes: 30,
+      distanceKm: 2.5,
+      speedKmh: 5.0,
+      inclinePercent: 6,
+      userWeightKg: 75,
+    });
+
+    expect(flatWalk).toBeGreaterThan(100);
+    // Walking with 6% incline should burn significantly more calories than flat
+    expect(inclinedWalk).toBeGreaterThan(flatWalk);
+  });
+
+  it('respects direct machine console calorie override', () => {
+    const directKcal = calculateAdvancedCardioCalories({
+      cardioType: 'Stationary Bike',
+      durationMinutes: 45,
+      directKcalOverride: 375,
+      userWeightKg: 80,
+    });
+
+    expect(directKcal).toBe(375);
   });
 });
