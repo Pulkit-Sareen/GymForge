@@ -46,8 +46,8 @@ export const CardioLogModal: React.FC<CardioLogModalProps> = ({
   useEffect(() => {
     async function loadWeight() {
       const prefs = await getPreferences();
-      if (prefs?.bodyweightKg) {
-        setUserWeightKg(prefs.bodyweightKg);
+      if (prefs?.currentWeightKg) {
+        setUserWeightKg(prefs.currentWeightKg);
       }
     }
     loadWeight();

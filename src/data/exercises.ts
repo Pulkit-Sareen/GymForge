@@ -873,6 +873,7 @@ export const EXERCISE_LIBRARY: ExerciseDefinition[] = [
     defaultRepMin: 20,
     defaultRepMax: 30,
     defaultRestSeconds: 0,
+    metValue: 6.8,
   },
 
   // NEW CHEST MOVEMENTS
